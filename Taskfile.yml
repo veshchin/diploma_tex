@@ -1,0 +1,50 @@
+version: "3"
+
+vars:
+  MAIN_TEX: main.tex
+  MAIN_NAME: main
+  BUILD_DIR: build
+  CHECK_DIR: /tmp/diploma_tex-check
+
+tasks:
+  default:
+    desc: Build the thesis PDF.
+    cmds:
+      - task: build
+
+  build:
+    desc: Build the PDF with XeLaTeX and Biber.
+    cmds:
+      - mkdir -p "{{.BUILD_DIR}}"
+      - xelatex -halt-on-error -interaction=nonstopmode -file-line-error -output-directory="{{.BUILD_DIR}}" "{{.MAIN_TEX}}"
+      - biber --input-directory="{{.BUILD_DIR}}" --output-directory="{{.BUILD_DIR}}" "{{.MAIN_NAME}}"
+      - xelatex -halt-on-error -interaction=nonstopmode -file-line-error -output-directory="{{.BUILD_DIR}}" "{{.MAIN_TEX}}"
+      - xelatex -halt-on-error -interaction=nonstopmode -file-line-error -output-directory="{{.BUILD_DIR}}" "{{.MAIN_TEX}}"
+    generates:
+      - "{{.BUILD_DIR}}/{{.MAIN_NAME}}.pdf"
+
+  check:
+    desc: Run a safe XeLaTeX check without generating PDF.
+    cmds:
+      - rm -rf "{{.CHECK_DIR}}"
+      - mkdir -p "{{.CHECK_DIR}}"
+      - xelatex -no-pdf -halt-on-error -interaction=nonstopmode -file-line-error -output-directory="{{.CHECK_DIR}}" "{{.MAIN_TEX}}"
+      - biber --input-directory="{{.CHECK_DIR}}" --output-directory="{{.CHECK_DIR}}" "{{.MAIN_NAME}}"
+      - xelatex -no-pdf -halt-on-error -interaction=nonstopmode -file-line-error -output-directory="{{.CHECK_DIR}}" "{{.MAIN_TEX}}"
+
+  clean:
+    desc: Remove build artifacts.
+    cmds:
+      - rm -rf "{{.BUILD_DIR}}"
+
+  open:
+    desc: Open the generated PDF in the default viewer.
+    cmds:
+      - xdg-open "{{.BUILD_DIR}}/{{.MAIN_NAME}}.pdf"
+
+  open-build:
+    desc: Build the thesis and open the PDF.
+    deps:
+      - build
+    cmds:
+      - task: open
