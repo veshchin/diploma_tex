@@ -1,4 +1,10 @@
-build/
+.build/*
+!.build/build.sh
+!.build/chapters/
+.build/chapters/*
+!.build/chapters/build_chapters.sh
+!.build/chapters/chapter_wrapper.tex
+results/
 .DS_Store
 *.aux
 *.bbl
@@ -20,3 +26,5 @@ build/
 *.toc
 *.xdv
 main.pdf
+Diploma.pdf
+Taskfile.yml

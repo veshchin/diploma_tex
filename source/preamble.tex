@@ -1,0 +1,98 @@
+\PassOptionsToPackage{hyphens}{url}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+
+\usepackage[english, russian]{babel}
+\usepackage{csquotes}
+\usepackage[a4paper, left=30mm, right=15mm, top=20mm, bottom=20mm]{geometry}
+
+\usepackage{setspace}
+\onehalfspacing
+
+\usepackage{indentfirst}
+\setlength{\parindent}{1.25cm}
+\setlength{\emergencystretch}{3em}
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+
+\usepackage{caption}
+\DeclareCaptionLabelSeparator{emdash}{\textemdash\space}
+\captionsetup{labelsep=emdash}
+\captionsetup[table]{format=plain, justification=raggedright, singlelinecheck=false}
+
+\usepackage{tabularray}
+\usepackage{amsmath}
+\usepackage{titlesec}
+\usepackage{titletoc}
+\usepackage{chngcntr}
+\usepackage{pdfpages}
+\usepackage{enumitem}
+
+\usepackage[backend=biber, style=gost-numeric, sorting=none]{biblatex}
+\addbibresource{references.bib}
+\DefineBibliographyStrings{russian}{%
+  urlseen = {дата обращения:},%
+}
+\renewbibmacro*{url+urldate+note}{%
+  \iffieldundef{url}
+    {}
+    {\ifboolexpr{
+        test {\ifentrytype{online}}
+        or
+        ( test \ifcitation
+          and
+          togl {cbx:url}
+        )
+        or
+        ( not test \ifcitation
+          and
+          togl {bbx:url}
+        )
+      }
+        {\printtext{Текст\addspace:\addspace электронный // }%
+         \iflistundef{organization}
+           {\iflistundef{institution}
+              {\printfield{title}}
+              {\printlist{institution}}}
+           {\printlist{organization}}%
+         \printtext{\addspace:\addspace [сайт]}%
+         \newunit\newblock
+         \printtext{\textendash\space}%
+         \usebibmacro{url+urldate}}
+        {}}%
+  \setunit*{\addsemicolondelim}%
+  \printfield{note}}
+
+\usepackage{xurl}
+\usepackage[hidelinks]{hyperref}
+\usepackage{appendix}
+
+\pagestyle{plain}
+\hbadness=10000
+\renewcommand{\labelenumi}{\arabic{enumi})}
+\renewcommand{\labelitemi}{\textemdash}
+\setlist[itemize,1]{label=\textemdash, leftmargin=1.25cm, labelsep=0.5em, nosep}
+\setlist[enumerate,1]{leftmargin=1.25cm, nosep}
+
+\counterwithin{figure}{chapter}
+\counterwithin{table}{chapter}
+\counterwithin{equation}{chapter}
+
+\titleformat{\chapter}[block]{\filcenter\bfseries}{\thechapter}{1em}{\MakeUppercase}
+\titleformat{\section}[block]{\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}[block]{\bfseries}{\thesubsection}{1em}{}
+
+\titlespacing*{\chapter}{0pt}{-30pt}{1.5cm}
+\titlespacing*{\section}{\parindent}{1cm}{1cm}
+\titlespacing*{\subsection}{\parindent}{1cm}{1cm}
+
+\addto\captionsrussian{\renewcommand{\contentsname}{СОДЕРЖАНИЕ}}
+\titlecontents{chapter}[0cm]{}{\thecontentslabel\hspace{1em}}{}{\titlerule*[0.5pc]{.}\contentspage}
+\titlecontents{section}[1.25cm]{}{\thecontentslabel\hspace{1em}}{}{\titlerule*[0.5pc]{.}\contentspage}
+\titlecontents{subsection}[2.5cm]{}{\thecontentslabel\hspace{1em}}{}{\titlerule*[0.5pc]{.}\contentspage}
+
+\defbibheading{bibliography}[\bibname]{
+\clearpage
+\chapter*{СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ}
+\addcontentsline{toc}{chapter}{СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ}
+}
