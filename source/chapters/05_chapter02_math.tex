@@ -55,6 +55,107 @@ IF97 представляет собой промышленную региона
 маршрутизацией по регионам
 и численными процедурами на сложных участках области.
 
+Геометрия рабочей области стандарта наглядно показана на рисунке~\ref{fig:if97_regions}.
+Из него видно, что регионы разделены не произвольно, а по физически значимым границам:
+линиям насыщения, критической области и высоким температурам,
+поэтому выбор формулы в ядре всегда связан с положением точки на этой диаграмме.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}
+        
+        % ЛЕВЫЙ ГРАФИК: Регионы 1, 2, 3 и 4
+        \begin{axis}[
+            name=ax1,
+            width=10cm, height=8cm, % Немного сузили, чтобы точно влезло в поля
+            xmin=250, xmax=1150,
+            ymin=0, ymax=110,
+            axis y line=left,
+            axis x line=bottom,
+            ylabel={Давление $p$, МПа},
+            xlabel={Температура $T$, К},
+            xtick={273.15, 623.15, 1073.15},
+            ytick={0, 50, 100}, % Оставили только главные метки
+            extra y ticks={22.06}, % Добавили критическое давление отдельно
+            extra y tick labels={22{,}06},
+            grid=both,
+            grid style={dashed, gray!30},
+            enlargelimits=false,
+            ticklabel style={/pgf/number format/use comma},
+            clip=false % Отключаем обрезку элементов, выходящих за рамки
+        ]
+        
+        % Регион 4: Линия насыщения (по реперным точкам IF97)
+        \addplot [orange, ultra thick, smooth] coordinates {
+            (273.15, 0.000611)
+            (373.15, 0.1013)
+            (473.15, 1.554)
+            (573.15, 8.581)
+            (647.096, 22.064)
+        };
+        
+        % Граница между Регионами 2 и 3 (Уравнение B23)
+        \addplot [domain=623.15:863.15, samples=50, thick, dashed] 
+            {13.918837 + 0.001019297 * (x - 572.5446)^2};
+            
+        % Вертикальная граница между Регионами 1 и 3
+        \draw[thick, dashed] (axis cs:623.15, 16.53) -- (axis cs:623.15, 100);
+        
+        % Вертикальная граница между Регионами 2 и 5
+        \draw[thick] (axis cs:1073.15, 0) -- (axis cs:1073.15, 100);
+        
+        % Верхняя граница графика (p = 100 МПа)
+        \draw[thick] (axis cs:273.15, 100) -- (axis cs:1073.15, 100);
+        
+        % Подписи регионов
+        \node at (axis cs: 440, 60) [font=\large] {Регион 1};
+        \node at (axis cs: 870, 30) [font=\large] {Регион 2};
+        \node at (axis cs: 720, 80) [font=\large] {Регион 3};
+        
+        % Выноска для Региона 4 (сделали аккуратнее)
+        \draw[<-, thick] (axis cs: 573.15, 8.5) -- (axis cs: 750, 15) 
+            node[anchor=west, font=\large] {Регион 4};
+            
+        \end{axis}
+        
+        % ПРАВЫЙ ГРАФИК: Регион 5 (Разрыв оси)
+        \begin{axis}[
+            name=ax2,
+            at={(ax1.south east)},
+            anchor=south west, % Жестко выравниваем левый нижний угол
+            xshift=0.8cm, % Увеличили отступ для значка разрыва
+            width=3.5cm, height=8cm,
+            xmin=2173.15, xmax=2373.15,
+            ymin=0, ymax=110,
+            axis y line=none, 
+            axis x line=bottom,
+            xtick={2273.15},
+            grid=both,
+            grid style={dashed, gray!30},
+            enlargelimits=false,
+            ticklabel style={/pgf/number format/use comma},
+            clip=false % Важно! Чтобы надписи не обрезались правым краем
+        ]
+        
+        % Верхняя и правая границы Региона 5
+        \draw[thick] (axis cs:2173.15, 50) -- (axis cs:2273.15, 50);
+        \draw[thick] (axis cs:2273.15, 0) -- (axis cs:2273.15, 50);
+        
+        \node at (axis cs: 2223, 25) [font=\large] {Регион 5};
+        \node at (axis cs: 2223, 55) {50 МПа};
+        
+        \end{axis}
+        
+        % Отрисовка значка "разрыва" оси X между графиками
+        \path (ax1.south east) -- (ax2.south west) coordinate[midway] (mid);
+        \draw[thick] (mid) ++(-0.15cm, -0.2cm) -- ++(0.1cm, 0.4cm);
+        \draw[thick] (mid) ++(0.05cm, -0.2cm) -- ++(0.1cm, 0.4cm);
+        
+    \end{tikzpicture}
+    \caption{Диаграмма $p$--$T$ с границами регионов IAPWS-IF97}
+    \label{fig:if97_regions_fixed}
+\end{figure}
+
 \subsection{Характеристика регионов 1--5}
 
 IF97 выделяет пять основных регионов и отдельную область насыщения.

@@ -19,6 +19,142 @@
 контролируемую обработку ошибок и высокую производительность
 без потери надёжности~\cite{rust_book}.
 
+Математическая основа вычислительного ядра опирается на два фундаментальных потенциала.
+В регионах 1, 2 и 5 используется безразмерная энергия Гиббса
+\[
+\gamma(\pi,\tau)=\frac{g(p,T)}{RT},
+\]
+а в регионе 3 --- безразмерная энергия Гельмгольца
+\[
+\phi(\delta,\tau)=\frac{f(\rho,T)}{RT}.
+\]
+Через производные \(\gamma_{\pi}\), \(\gamma_{\tau}\), \(\gamma_{\tau\tau}\)
+и \(\phi_{\delta}\), \(\phi_{\tau}\), \(\phi_{\delta\delta}\)
+ядро вычисляет удельный объём, энтальпию, энтропию, теплоёмкость и скорость звука,
+поэтому выбор региона непосредственно определяет набор используемых формул.
+
+Чтобы показать фактический путь данных через внешний API, валидацию и маршрутизацию ядра,
+ниже приведена схема вычислительного контура.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    >=Stealth,
+    font=\scriptsize,
+    block/.style={draw, rounded corners, align=center, minimum height=8mm, text width=3.1cm, fill=blue!6},
+    api/.style={block, fill=green!9},
+    core/.style={block, fill=orange!12},
+    route/.style={draw, rounded corners, align=center, minimum height=8mm, text width=3.1cm, fill=gray!8},
+    branch/.style={draw, rounded corners, align=center, minimum height=8mm, text width=2.4cm, fill=gray!5},
+    conv/.style={draw, rounded corners, align=center, minimum height=6mm, text width=1.8cm, fill=yellow!10},
+    region/.style={draw, rounded corners, align=center, minimum height=10mm, text width=2.4cm, fill=blue!4},
+    result/.style={draw, rounded corners, align=center, minimum height=10mm, text width=4.0cm, fill=blue!8},
+    error/.style={draw, rounded corners, align=center, minimum height=18mm, text width=3.1cm, fill=red!12},
+    % Новые цвета маршрутов
+    pt_style/.style={draw, thick, dashed, orange!90!black},
+    phps_style/.style={draw, thick, dashed, violet!80!black},
+    rhot_style/.style={draw, thick, dashed, green!70!black},
+    px_style/.style={draw, thick, dashed, blue!80!black}
+]
+    \node[block] (client) at (0,0) {Внешний\\потребитель\\FLTK / Tauri / gRPC};
+    \node[api] (dto) at (0,-1.35) {if97\_app\_api\\DTO и схема входа};
+    \node[core] (engine) at (0,-2.8) {if97\_core::engine\\валидация и регион};
+    \node[route] (split) at (0,-4.15) {Выбор маршрута};
+
+    % Блок ошибок теперь расположен компактнее
+    \node[error] (err) at (5.0,-2.075) {Ошибка входа, схемы,\\расчёта или региона};
+
+    % Уменьшенный шаг между колонками для большей компактности
+    \node[branch] (pt) at (-4.35,-5.6) {$pT$\\вход};
+    \node[branch] (phps) at (-1.45,-5.6) {$ph/ps$\\вход};
+    \node[branch] (rhot) at (1.45,-5.6) {$\rho T$\\вход};
+    \node[branch] (px) at (4.35,-5.6) {$px$\\вход};
+
+    \node[conv] (sec_p1) at (-5.8,-7.6) {$p$ секущей};
+    \node[conv] (sec_p2) at (-2.9,-7.6) {$p$ секущей};
+    \node[conv] (sec_rho3) at (0,-7.6) {$\rho$ секущей};
+    \node[conv] (calc_x4) at (2.9,-7.6) {вычисл. $x$};
+    \node[conv] (sec_p5) at (5.8,-7.6) {$p$ секущей};
+
+    \node[region] (r1) at (-5.8,-9.2) {Регион 1\\$pT, ph, ps$};
+    \node[region] (r2) at (-2.9,-9.2) {Регион 2\\$pT, ph, ps$};
+    \node[region] (r3) at (0,-9.2) {Регион 3\\$\rho T, ph, ps$};
+    \node[region] (r4) at (2.9,-9.2) {Регион 4\\$px$};
+    \node[region] (r5) at (5.8,-9.2) {Регион 5\\$pT, ph, ps$};
+
+    \node[result] (state) at (0,-11.2) {if97\_core::domain::WaterState\\полный набор свойств};
+    \node[api] (ser) at (0,-12.5) {if97\_app\_api\\результат или ошибка};
+    \node[block] (resp) at (0,-13.8) {Ответ клиенту};
+
+    \draw[->] (client) -- (dto);
+    \draw[->] (dto) -- (engine);
+    \draw[->] (engine) -- (split);
+
+    \draw[->] (split) -- (pt);
+    \draw[->] (split) -- (phps);
+    \draw[->] (split) -- (rhot);
+    \draw[->] (split) -- (px);
+
+    \coordinate (bus_pt) at (-4.35, -6.2);
+    \coordinate (bus_phps) at (-1.45, -6.4);
+    \coordinate (bus_rhot) at (1.45, -6.6);
+
+    % pT - оранжевый
+    \draw[pt_style, -] (pt.south) -- (bus_pt);
+    \draw[pt_style, ->] (bus_pt) -| ([xshift=-10pt]r1.north);
+    \draw[pt_style, ->] (bus_pt) -| ([xshift=-10pt]r2.north);
+    \draw[pt_style, ->] (bus_pt) -| (sec_rho3.north);
+    \draw[pt_style, ->] (bus_pt) -| ([xshift=-10pt]r5.north);
+
+    % Ошибка pT: проходит аккуратно слева и между DTO и Engine
+    \draw[->, red!70, dashed, thick] (pt.west) -- ++(-2.0,0) |- (err.west); 
+
+    % phps - фиолетовый
+    \draw[phps_style, -] (phps.south) -- (bus_phps);
+    \draw[phps_style, ->] (bus_phps) -| ([xshift=10pt]r1.north);
+    \draw[phps_style, ->] (bus_phps) -| ([xshift=10pt]r2.north);
+    \draw[phps_style, ->] (bus_phps) -| ([xshift=-10pt]r3.north);
+    \draw[phps_style, ->] (bus_phps) -| ([xshift=10pt]r5.north);
+
+    % rhot - зелёный
+    \draw[rhot_style, -] (rhot.south) -- (bus_rhot);
+    \draw[rhot_style, ->] (bus_rhot) -| (sec_p1.north);
+    \draw[rhot_style, ->] (bus_rhot) -| (sec_p2.north);
+    \draw[rhot_style, ->] (bus_rhot) -| ([xshift=10pt]r3.north);
+    \draw[rhot_style, ->] (bus_rhot) -| (calc_x4.north);
+    \draw[rhot_style, ->] (bus_rhot) -| (sec_p5.north);
+
+    % px - синий
+    \draw[px_style, ->] (px.south) -- ++(0,-1.0) -| ([xshift=10pt]r4.north);
+
+    % Линии от конвертеров к регионам - сплошные, тонкие (без стиля, чтобы не перегружать)
+    \draw[->] (sec_p1.south) -- (r1.north);
+    \draw[->] (sec_p2.south) -- (r2.north);
+    \draw[->] (sec_rho3.south) -- (r3.north);
+    \draw[->] (calc_x4.south) -- (r4.north);
+    \draw[->] (sec_p5.south) -- (r5.north);
+
+    % Сборка результата
+    \draw[->] (r1.south) |- ([yshift=15pt]state.north) -- (state.north);
+    \draw[->] (r2.south) |- ([yshift=15pt]state.north) -- (state.north);
+    \draw[->] (r3.south) -- (state.north);
+    \draw[->] (r4.south) |- ([yshift=15pt]state.north) -- (state.north);
+    \draw[->] (r5.south) |- ([yshift=15pt]state.north) -- (state.north);
+
+    \draw[->] (state) -- (ser);
+    \draw[->] (ser) -- (resp);
+
+    % Линии ошибок - красные пунктирные
+    \draw[->, red!70, dashed, thick] (dto.east) -- (err.west |- dto.east);
+    \draw[->, red!70, dashed, thick] (engine.east) -- (err.west |- engine.east);
+    % Эта линия спускается строго по правой границе, никого не задевая
+    \draw[->, red!70, dashed, thick] (err.east) -| (7.3, -12.5) -- (ser.east);
+
+\end{tikzpicture}
+\caption{Путь данных через слой DTO, валидацию и вычислительное ядро}
+\label{fig:core-data-path}
+\end{figure}
+
 \section{Структура и модули библиотеки \texttt{if97\_core}}
 
 Внутренняя организация \texttt{if97\_core}
@@ -26,6 +162,49 @@
 Декомпозиция соответствует практикам предметно-ориентированного проектирования (DDD):
 доменная модель отделена от вычислительной логики,
 а операции ядра реализованы как детерминированные процедуры без внутреннего состояния.
+
+Эта декомпозиция удобно читается в виде концентрической схемы слоёв:
+в центре расположен домен \texttt{if97\_core},
+следом идёт слой контракта \texttt{if97\_app\_api},
+а внешние окружения подключаются как адаптеры без проникновения предметной логики наружу.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[>=Stealth, font=\scriptsize]
+    \path[draw=black, fill=blue!4, even odd rule]
+        (30:4.95cm) arc (30:150:4.95cm) -- (150:3.25cm)
+        arc (150:30:3.25cm) -- cycle;
+    \path[draw=black, fill=orange!4, even odd rule]
+        (150:4.95cm) arc (150:270:4.95cm) -- (270:3.25cm)
+        arc (270:150:3.25cm) -- cycle;
+    \path[draw=black, fill=green!4, even odd rule]
+        (270:4.95cm) arc (270:390:4.95cm) -- (390:3.25cm)
+        arc (390:270:3.25cm) -- cycle;
+
+    \path[draw=black, fill=green!10, even odd rule]
+        (0,0) circle (3.0cm) (0,0) circle (1.55cm);
+    \fill[blue!14] (0,0) circle (1.55cm);
+
+    \node[align=center] at (0,0.15) {\textbf{if97\_calculator}};
+    \node[align=center] at (0,-0.35) {\scriptsize if97\_core};
+
+    \node[align=center] at (0,2.15) {\textbf{if97\_app\_api}\\\scriptsize DTO / validation / serialization};
+
+    \node[align=center] (fltk) at (0,4.35) {\textbf{FLTK}};
+    \node[align=center] (service) at (-4.05,-1.95) {\textbf{service}};
+    \node[align=center] (tauri) at (4.05,-1.95) {\textbf{Tauri}};
+
+    \draw[->, thick] (fltk) -- (0,3.0);
+    \draw[->, thick] (service) -- (-1.55,-0.95);
+    \draw[->, thick] (tauri) -- (1.55,-0.95);
+
+    \draw[thick] (0,0) circle (1.55cm);
+    \draw[thick] (0,0) circle (3.0cm);
+    \draw[thick] (0,0) circle (4.95cm);
+\end{tikzpicture}
+\caption{Структура взаимодействия компонент программного комлекса}
+\label{fig:core-ddd}
+\end{figure}
 
 Типовая структура ядра включает следующие функциональные блоки:
 \begin{itemize}
@@ -92,6 +271,19 @@
 После этого выбирается вычислительная процедура:
 прямая формула, аналитическая обратная зависимость
 или численный решатель.
+
+Если же входная пара сразу задана как $(\rho, T)$,
+то для региона~3 свойства вычисляются непосредственно
+через потенциал Гельмгольца без дополнительной смены переменных.
+В однофазных регионах 1, 2 и 5
+маршрут $(\rho, T)$ трактуется как расширенная инженерная постановка:
+по заданным плотности и температуре сначала восстанавливается давление
+методом секущих по уравнению $F_{p}(p)=\rho_{\mathrm{IF97}}(p,T)-\rho^{*}=0$,
+после чего вычисление продолжается по стандартному маршруту $(p, T)$.
+В двухфазной области (регион~4) сначала определяется давление насыщения
+$p_{\mathrm{sat}}(T)$, а затем по плотности смеси явно восстанавливается
+степень сухости $x$; этот шаг позволяет не сводить двухфазную область
+к искусственному однофазному приближению.
 
 Для пар $(p, h)$ и $(p, s)$
 используются аналитические обратные формулы IF97 там,

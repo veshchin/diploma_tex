@@ -20,8 +20,12 @@
 \captionsetup{labelsep=emdash}
 \captionsetup[table]{format=plain, justification=raggedright, singlelinecheck=false}
 
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 \usepackage{tabularray}
 \usepackage{amsmath}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, calc, shapes.geometric, pgfplots.groupplots}
 \usepackage{titlesec}
 \usepackage{titletoc}
 \usepackage{chngcntr}
@@ -67,6 +71,7 @@
 \usepackage{qrcode}
 \usepackage[hidelinks]{hyperref}
 \usepackage{appendix}
+\graphicspath{{../data/pic/}{../../data/pic/}}
 
 \pagestyle{plain}
 \hbadness=10000
