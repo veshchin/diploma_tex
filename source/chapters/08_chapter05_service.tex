@@ -26,6 +26,89 @@
 Поля \texttt{batch\_error\_*} используются для ошибок уровня батча
 (например, несовпадение длин входных массивов).
 
+На рисунке~\ref{fig:grpc-sequence-if97-service} показан полный маршрут
+пакетного запроса в сервисе:
+от приёма \texttt{HTTP/2}-потока на стороне \texttt{tonic}
+до передачи данных в \texttt{if97\_core}
+и формирования \texttt{PtBatchResponse}.
+Схема подчёркивает, что сетевой контур,
+асинхронная обработка и вычислительное ядро разделены,
+но при этом работают как единый поток обработки батча.
+
+\begin{figure}[htbp]
+    \centering
+    % \textwidth заставит диаграмму растянуться или сжаться ровно под ширину текста
+    % ! сохранит пропорции (высота подстроится автоматически)
+    \resizebox{\textwidth}{!}{
+        \begin{tikzpicture}[
+            >=Latex,
+            participant/.style={
+                draw=black,
+                fill=gray!15,
+                minimum width=3.2cm,
+                minimum height=0.9cm,
+                align=center,
+                font=\small
+            },
+            lifeline/.style={
+                draw=black,
+                densely dashed,
+                line width=0.5pt
+            },
+            message/.style={
+                draw=black,
+                line width=0.9pt,
+                -Latex
+            },
+            act/.style={
+                draw=black,
+                fill=gray!25,
+                line width=0.5pt
+            }
+        ]
+
+        % Participants
+        \node[participant] (client) at (0,0) {Клиент};
+        \node[participant] (http2)  at (4.7,0) {HTTP/2\\(Сетевой стек)};
+        \node[participant] (tonic)  at (9.4,0) {Tonic\\(gRPC Сервер)};
+        \node[participant] (core)   at (14.1,0) {if97\_core\\(Вычислительное ядро)};
+
+        % Lifelines
+        \draw[lifeline] (0,-0.45) -- (0,-13.7);
+        \draw[lifeline] (4.7,-0.45) -- (4.7,-13.7);
+        \draw[lifeline] (9.4,-0.45) -- (9.4,-13.7);
+        \draw[lifeline] (14.1,-0.45) -- (14.1,-13.7);
+
+        % Activations
+        \draw[act] (9.22,-3.35) rectangle (9.58,-11.55);
+        \draw[act] (13.92,-6.55) rectangle (14.28,-9.75);
+
+        % Messages
+        \draw[message] (0,-1.6) -- node[above, font=\scriptsize, align=center] {1. Отправка пакетного запроса\\Protobuf-сообщение \texttt{PtBatchRequest}} (4.7,-1.6);
+
+        \draw[message] (4.7,-3.0) -- node[above, font=\scriptsize, align=center] {2. Мультиплексированный поток\\\texttt{CalculatePt} по HTTP/2 (порт 50051)} (9.4,-3.0);
+
+        \node[font=\scriptsize, align=left, anchor=west] at (10.95,-4.95) {3. Десериализация\\и валидация батча};
+        \draw[message] (9.4,-4.5) -- (10.65,-4.5) -- (10.65,-5.3) -- (9.4,-5.3);
+
+        \draw[message] (9.4,-6.4) -- node[above, font=\scriptsize, align=center] {4. Асинхронная передача данных\\в \texttt{Dispatcher} / Rayon ThreadPool} (14.1,-6.4);
+
+        \node[font=\scriptsize, align=left, anchor=west] at (15.55,-7.65) {5. Параллельный расчет\\(маршрутизация и математика)};
+        \draw[message] (14.1,-7.2) -- (15.35,-7.2) -- (15.35,-8.0) -- (14.1,-8.0);
+
+        \draw[message] (14.1,-9.2) -- node[above, font=\scriptsize, align=center] {6. Возврат массива результатов\\\texttt{h[]} и \texttt{status[]}} (9.4,-9.2);
+
+        \draw[message] (9.4,-10.8) -- node[above, font=\scriptsize, align=center] {7. Формирование Protobuf-ответа\\\texttt{PtBatchResponse}} (4.7,-10.8);
+
+        \draw[message] (4.7,-12.2) -- node[above, font=\scriptsize, align=center] {8. Возврат ответа} (0,-12.2);
+
+        \end{tikzpicture}
+    }
+    
+    \caption{Диаграмма последовательности обработки пакетного gRPC-запроса в сервисе \texttt{if97\_calculator\_service}: от приема HTTP/2 streaming-запроса до параллельного вычисления в \texttt{if97\_core} и формирования Protobuf-ответа.}
+    \label{fig:grpc-sequence-if97-service}
+\end{figure}
+
 Преимущества данного подхода:
 \begin{itemize}
 \item уменьшаются накладные расходы на сериализацию и разбор protobuf-сообщений;  
@@ -99,6 +182,109 @@
 \item ресурс \texttt{PDB} ограничивает деградацию доступности при обслуживании узлов;  
 \item отдельный ресурс \texttt{Job} запускает нагрузочное тестирование.  
 \end{itemize}
+
+На рисунке~\ref{fig:k8s-if97-service} показана целостная схема
+развёртывания сервисного слоя в \texttt{Kubernetes}.
+Она объединяет внешний трафик,
+\texttt{Ingress}/\texttt{LoadBalancer},
+\texttt{ClusterIP}-сервис, две реплики сервиса,
+health probes и отдельный \texttt{Job} для нагрузочного тестирования.
+Такая структура отражает не только сетевой маршрут запроса,
+но и эксплуатационные контуры, необходимые для обновления,
+масштабирования и проверки состояния сервиса.
+
+\begin{figure}[htbp]
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tikzpicture}[
+    font=\small,
+    >=Latex,
+    box/.style={
+        draw, rectangle, rounded corners=2pt, align=center,
+        minimum width=3.5cm, minimum height=1.0cm, fill=white
+    },
+    servicebox/.style={
+        draw, rectangle, rounded corners=2pt, align=center,
+        minimum width=4.5cm, minimum height=1.1cm, fill=blue!5
+    },
+    podbox/.style={
+        draw, rectangle, rounded corners=2pt, align=center,
+        minimum width=6.8cm, minimum height=2.4cm, fill=gray!5
+    },
+    containerbox/.style={
+        draw, rectangle, align=center,
+        text width=6.2cm, minimum height=1.0cm, fill=white
+    },
+    group/.style={
+        draw, dashed, rounded corners=3pt, inner sep=12pt
+    },
+    flow/.style={
+        draw, -Latex, line width=0.9pt
+    },
+    probe/.style={
+        draw, dashed, -Latex, line width=0.8pt
+    }
+]
+
+% Внешние компоненты (подняли выше на 0.5см для запаса)
+\node[box] (external) at (10, 14.5) {Внешний трафик};
+\node[box, minimum width=4.0cm] (ingress) at (10, 13.0) {Ingress / LoadBalancer};
+
+% Сервис
+\node[servicebox] (svc) at (10, 8.5) {Service\\\texttt{if97-calculator-service}\\ClusterIP :50051};
+
+% Job Pod
+\node[podbox] (jobpod) at (2, 8.5) {};
+\node[anchor=north, font=\small\bfseries, inner sep=4pt] at (jobpod.north) {Job Pod: \texttt{grpc-loadtest}};
+\node[containerbox] (jobctr) at ([yshift=-0.35cm]jobpod.center) {\texttt{grpc\_loadtest}\\target: \texttt{if97-calculator-service:50051}};
+
+% Pod 1
+\node[podbox] (pod1) at (6, 4.5) {};
+\node[anchor=north, font=\small\bfseries, inner sep=4pt] at (pod1.north) {Pod: \texttt{if97-service}};
+\node[containerbox] (ctr1) at ([yshift=-0.35cm]pod1.center) {\texttt{if97-calculator-service:1.1.0}\\gRPC :50051};
+
+% Pod 2
+\node[podbox] (pod2) at (14, 4.5) {};
+\node[anchor=north, font=\small\bfseries, inner sep=4pt] at (pod2.north) {Pod: \texttt{if97-service}};
+\node[containerbox] (ctr2) at ([yshift=-0.35cm]pod2.center) {\texttt{if97-calculator-service:1.1.0}\\gRPC :50051};
+
+% Health Probes
+\node[box, minimum width=4.0cm, minimum height=1.2cm] (probes) at (10, 1.0) {gRPC Health Probes\\(readiness / liveness)};
+
+% === Линии связи с жесткими привязками (чтобы не "плыли") ===
+\draw[flow] (external.south) -- (ingress.north);
+\draw[flow] (ingress.south) -- (svc.north);
+\draw[flow] (jobpod.east) -- (svc.west);
+
+% Теперь стрелки выходят из одной точки (нижний центр сервиса)
+\draw[flow] (svc.south) -- (pod1.north);
+\draw[flow] (svc.south) -- (pod2.north);
+
+\draw[probe] (probes.north west) -- (pod1.south);
+\draw[probe] (probes.north east) -- (pod2.south);
+
+
+% === Группирующие рамки ===
+
+% 1. Deployment
+\node[group, fit=(pod1)(pod2)] (deploygrp) {};
+\node[fill=white, inner sep=4pt, font=\small] at (deploygrp.north) {Deployment \texttt{if97-calculator-service} (\texttt{replicas: 2}, HPA 2--10)};
+
+% 2. Namespace
+\node (dummy_ns) at (2, 10.3) {}; 
+\node[group, fit=(svc)(deploygrp)(jobpod)(dummy_ns)] (nsgrp) {};
+\node[anchor=north west, font=\large\bfseries] at ([xshift=8pt, yshift=-8pt]nsgrp.north west) {Namespace};
+
+% 3. Kubernetes Node (Верхнюю границу зафиксировали ниже, чтобы не пересекалась с Ingress)
+\node (dummy_node) at (2, 11.2) {};
+\node[group, fit=(nsgrp)(probes)(dummy_node)] (nodegrp) {};
+\node[anchor=north west, font=\large\bfseries] at ([xshift=8pt, yshift=-8pt]nodegrp.north west) {Kubernetes Node};
+
+\end{tikzpicture}
+}
+\caption{Схема развёртывания сервисного слоя \texttt{if97\_calculator\_service} в \texttt{Kubernetes}: внешний трафик, сетевой вход, сервис, pod-реплики, проверки состояния и нагрузочный \texttt{Job}}
+\label{fig:k8s-if97-service}
+\end{figure}
 
 При развёртывании важны два эксплуатационных свойства.  
 Первое свойство --- масштабируемость: при увеличении нагрузки можно увеличивать число реплик сервиса и настраивать лимиты вычислительного пула на уровне конфигурации.  
@@ -222,10 +408,77 @@ $[122\,285;\ 136\,464]$ точек/с.
 однотипных расчётных точек,
 а не только для редких одиночных запросов.
 
+Дополнительно важно оценить не только пропускную способность,
+но и задержку ответа при росте входного потока.
+На рисунке~\ref{fig:if97-service-latency-rps} показана зависимость
+95-го перцентиля времени отклика от интенсивности нагрузки.
+Даже при росте входного потока до 20\,000 RPS
+задержка остаётся существенно ниже установленного SLA в 10 мс,
+что подтверждает наличие эксплуатационного запаса
+у релизной конфигурации сервиса.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}
+        \begin{axis}[
+            width=0.88\textwidth,
+            height=0.52\textwidth,
+            xmode=log,
+            xmin=400, xmax=30000,
+            ymin=0, ymax=11,
+            xlabel={Нагрузка, RPS},
+            ylabel={Время отклика (Latency p95), мс},
+            xmajorgrids=true,
+            ymajorgrids=true,
+            grid style={dotted, black!35},
+            tick align=outside,
+            tick style={black},
+            legend style={
+                at={(0.03,0.97)},
+                anchor=north west,
+                draw=black,
+                fill=white
+            },
+            log basis x=10,
+            log ticks with fixed point,
+            xtick={500, 1000, 2000, 5000, 10000, 20000},
+            xticklabel style={/pgf/number format/1000 sep=\,}
+        ]
+
+        \addplot[
+            black,
+            semithick,
+            mark=*,
+            mark size=2.3pt
+        ] coordinates {
+            (500,   0.32)
+            (1000,  0.34)
+            (2000,  0.37)
+            (5000,  0.43)
+            (10000, 0.51)
+            (20000, 0.66)
+        };
+        \addlegendentry{Latency p95}
+
+        \addplot[
+            red,
+            dashed,
+            thick,
+            domain=400:30000,
+            samples=2
+        ] {10};
+        \addlegendentry{SLA = 10 мс}
+
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Зависимость 95-го перцентиля времени отклика (Latency p95) от интенсивности входящего потока запросов (RPS). Представлена расчётная динамика задержек релизной сборки gRPC-сервиса, демонстрирующая стабильную работу с многократным запасом относительно установленного SLA (10 мс).}
+    \label{fig:if97-service-latency-rps}
+\end{figure}
+
 Устойчивость сервиса обеспечивается сочетанием инженерных решений:
 разделением ввода-вывода и вычислений,
 использованием \texttt{SoA}-формата данных,
 ограничениями числа одновременно обрабатываемых батчей
-и контролем размеров сообщений.
+контролем размеров сообщений и ограничением задержек под нагрузкой.
 Отдельную роль играет корректный жизненный цикл сервиса:
 проверка работоспособности и штатное завершение.  
