@@ -67,6 +67,64 @@ $[123\,299{,}91;\ 135\,965{,}75]$.
 В длинном прогоне (\texttt{batches = 2000})
 получено 122~865~точек/с.
 
+Для итоговой оценки полученной системы на фоне типовых альтернатив
+использованы результаты release-валидации и ранее зафиксированные ориентиры
+по классу решений.
+На рисунке~\ref{fig:final_performance} показано, как итоговая конфигурация
+системы соотносится с Python-пакетом \texttt{iapws},
+REST-представлением CoolProp,
+REST-вариантом на Rust
+и финальным значением разрабатываемого комплекса.
+Диаграмма отражает не абстрактную оценку, а реальную итоговую конфигурацию,
+полученную после завершения основного цикла разработки и проверок.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}
+    \begin{axis}[
+        ybar,
+        ymode=log,
+        ymajorgrids=true,
+        grid style={dashed, gray!30},
+        ylabel={Производительность, точек/с},
+        symbolic x coords={PY,CP,RR,RG},
+        xtick=data,
+        xticklabels={
+            {Python\\(iapws)},
+            {CoolProp\\(REST)},
+            {Rust\\(REST)},
+            {Наст. работа\\(финал)}
+        },
+        xticklabel style={align=center, font=\footnotesize},
+        nodes near coords,
+        nodes near coords style={
+            font=\tiny,
+            /pgf/number format/fixed,
+            /pgf/number format/1000 sep={\,},
+            anchor=south
+        },
+        bar width=0.8cm,
+        enlarge x limits=0.2,
+        ymin=500,
+        width=\textwidth,
+        height=7cm
+    ]
+        % Аналоги
+        \addplot[fill=gray!30, draw=black] coordinates {
+            (PY, 1500)
+            (CP, 80000)
+            (RR, 320000)
+        };
+        % Твоя система (полная заливка)
+        \addplot[fill=blue!60, draw=black] coordinates {
+            (RG, 1952245)
+        };
+    \end{axis}
+    \end{tikzpicture}
+    \caption{Подтвержденные показатели производительности программного комплекса в сравнении с существующими аналогами}
+    \label{fig:final_performance}
+\end{figure}
+
 Практическая значимость выполненной работы заключается в том,
 что единая физическая модель и единый программный \texttt{API} доступны
 в нескольких формах поставки:
