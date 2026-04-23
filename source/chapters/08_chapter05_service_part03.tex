@@ -65,6 +65,7 @@ $[122\,285;\ 136\,464]$ точек/с.
 
 \begin{figure}[htbp]
     \centering
+    \resizebox{\linewidth}{!}{
     \begin{tikzpicture}
     \begin{axis}[
         ybar,
@@ -92,7 +93,7 @@ $[122\,285;\ 136\,464]$ точек/с.
         bar width=0.72cm,
         enlarge x limits=0.18,
         ymin=1000,
-        width=\textwidth,
+        width=\linewidth,
         height=7.5cm
     ]
         \addplot[fill=gray!40, draw=black] coordinates {
@@ -103,6 +104,7 @@ $[122\,285;\ 136\,464]$ точек/с.
         };
     \end{axis}
     \end{tikzpicture}
+    }
     \caption{Сравнение пропускной способности сервиса в режимах HTTP/2 и gRPC с батчированием и без него, с обновлением gRPC-ветки по release-тестам}
     \label{fig:throughput_comparison}
 \end{figure}
@@ -127,10 +129,11 @@ $[122\,285;\ 136\,464]$ точек/с.
 
 \begin{figure}[htbp]
     \centering
+    \resizebox{\linewidth}{!}{
     \begin{tikzpicture}
         \begin{axis}[
-            width=0.88\textwidth,
-            height=0.52\textwidth,
+            width=0.88\linewidth,
+            height=0.52\linewidth,
             xmode=log,
             xmin=400, xmax=30000,
             ymin=0, ymax=11,
@@ -179,6 +182,7 @@ $[122\,285;\ 136\,464]$ точек/с.
 
         \end{axis}
     \end{tikzpicture}
+    }
     \caption{Зависимость 95-го перцентиля времени отклика (Latency p95) от интенсивности входящего потока запросов (RPS). Представлена расчётная динамика задержек релизной сборки gRPC-сервиса, демонстрирующая стабильную работу с многократным запасом относительно установленного SLA (10 мс)}
     \label{fig:if97-service-latency-rps}
 \end{figure}
@@ -196,6 +200,7 @@ REST-вариантом на Rust
 
 \begin{figure}[htbp]
     \centering
+    \resizebox{\linewidth}{!}{
     \begin{tikzpicture}
     \begin{axis}[
         ybar,
@@ -222,7 +227,7 @@ REST-вариантом на Rust
         bar width=0.8cm,
         enlarge x limits=0.2,
         ymin=500,
-        width=\textwidth,
+        width=\linewidth,
         height=7cm
     ]
         % Аналоги
@@ -237,6 +242,7 @@ REST-вариантом на Rust
         };
     \end{axis}
     \end{tikzpicture}
+    }
     \caption{Подтвержденные показатели производительности программного комплекса в сравнении с существующими аналогами}
     \label{fig:final_performance}
 \end{figure}

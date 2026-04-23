@@ -39,7 +39,7 @@ ClusterIP-сервис, две реплики pod-контейнеров,
 
 \begin{figure}[htbp]
 \centering
-\resizebox{\textwidth}{!}{
+\resizebox{\linewidth}{!}{
 \begin{tikzpicture}[
     font=\small,
     >=Latex,
@@ -112,7 +112,7 @@ ClusterIP-сервис, две реплики pod-контейнеров,
 
 % 1. Deployment
 \node[group, fit=(pod1)(pod2)] (deploygrp) {};
-\node[fill=white, inner sep=4pt, font=\small] at (deploygrp.north) {Развёртывание (Deployment) \texttt{if97-calculator-service} (\texttt{replicas: 2}, HPA 2--10)};
+\node[fill=white, inner sep=4pt, font=\small, align=center] at (deploygrp.north) {Развёртывание (Deployment)\\\texttt{if97-calculator-service} (\texttt{replicas: 2}, HPA 2--10)};
 
 % 2. Namespace
 \node (dummy_ns) at (2, 10.3) {}; 

@@ -127,9 +127,10 @@ m \ge 0 :
 
 \begin{figure}[htbp]
     \centering
+    \resizebox{\linewidth}{!}{
     \begin{tikzpicture}
     \begin{axis}[
-        width=\textwidth,
+        width=\linewidth,
         height=8cm,
         ymode=log,
         ymin=1e-9, ymax=1e1,
@@ -181,6 +182,7 @@ m \ge 0 :
 
     \end{axis}
     \end{tikzpicture}
+    }
     \caption{Сравнительная динамика сходимости итерационных решателей в однофазной и околокритической областях IF97}
     \label{fig:convergence_comparison}
 \end{figure}
