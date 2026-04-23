@@ -5,8 +5,6 @@
 
 \chapter{ИСХОДНЫЙ КОД ПРОЕКТА}
 
-\section{Исходный код проекта}
-
 Полный исходный код вычислительного ядра \texttt{if97\_core}, сервиса и пользовательских приложений доступен в репозитории на GitHub.
 
 \begin{figure}[htbp]
@@ -181,7 +179,7 @@ message PtBatchResponse {
 
 Ниже приведены укрупнённые примеры фрагментов конфигураций, используемых в проекте.  
 
-\textbf{Фрагмент Kubernetes Deployment:}
+\textbf{Фрагмент ресурса развёртывания Kubernetes (Deployment):}
 \begin{verbatim}
 env:
   - name: IF97_GRPC_ADDR

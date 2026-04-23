@@ -21,6 +21,7 @@
 \DeclareCaptionLabelSeparator{emdash}{\textemdash\space}
 \captionsetup{labelsep=emdash}
 \captionsetup[table]{format=plain, justification=raggedright, singlelinecheck=false}
+\addto\captionsrussian{\renewcommand{\figurename}{Рисунок}}
 
 \usepackage{tabularray}
 \usepackage{amsmath}
@@ -80,6 +81,12 @@
 \renewcommand{\labelenumi}{\arabic{enumi})}
 \renewcommand{\labelitemi}{\textemdash}
 \setlist[itemize,1]{label=\textemdash, leftmargin=1.25cm, labelsep=0.5em}
+\newenvironment{gostwhere}{%
+  \par\noindent где
+  \begin{itemize}[label={}, leftmargin=1.5em, itemindent=0pt, nosep]
+}{%
+  \end{itemize}%
+}
 
 \counterwithin{figure}{chapter}
 \counterwithin{table}{chapter}

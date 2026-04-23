@@ -1,0 +1,126 @@
+\section{Численные методы расширения модели}
+
+IF97 задаёт основной набор формул и часть обратных зависимостей,
+но для полной рабочей области требуются дополнительные численные процедуры.
+В проекте они используются как расширение,
+сохраняющее физическую основу стандарта.
+
+\subsection[Метод секущих для региона~3 и однофазных областей]{Метод секущих для восстановления плотности в регионе~3 и давления в однофазных областях}
+
+В регионе~3 естественной входной парой является $(\rho, T)$.
+Следовательно, при расчёте по входной паре $(p, T)$
+сначала требуется восстановить плотность,
+согласованную с заданными давлением и температурой.
+Эта задача сводится к поиску корня уравнения
+\begin{equation}
+F_{\rho}(\rho) = p_{\mathrm{if97}}(\rho, T_{\mathrm{target}}) - p_{\mathrm{target}} = 0.
+\end{equation}
+
+Общий ход одномерного итерационного контура показан на рисунке~\ref{fig:secant_algorithm}.
+Схема отражает последовательность выбора начального приближения,
+вычисления невязки, проверки критерия остановки
+и возврата к следующей итерации с учётом физических ограничений области.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        scale=0.75,
+        transform shape,
+        node distance=0.8cm and 1.5cm,
+        auto,
+        block/.style={rectangle, draw, fill=blue!10, text width=5.7cm, align=center, rounded corners, minimum height=0.8cm},
+        decision/.style={diamond, draw, fill=orange!12, text width=3.2cm, align=center, inner sep=1pt, aspect=2.1},
+        line/.style={draw, -Latex}
+    ]
+        \node[block] (start) {Входные данные: $p_{\mathrm{target}}$, $T_{\mathrm{target}}$\\или $\rho_{\mathrm{target}}$, $T_{\mathrm{target}}$};
+        \node[block, below=of start] (init) {Выбор $p_{0}$ или $\rho_{0}$\\ и формирование второго приближения\\ $p_{1}=p_{0}\pm 1\%$};
+        \node[block, below=of init] (calc) {Вызов вычислительного шага:\\
+        $f_{0}=F(p_{0})$ или $F(\rho_{0})$\\
+        $f_{1}=F(p_{1})$ или $F(\rho_{1})$};
+        \node[decision, below=of calc] (tol) {$|f_{1}| \le \varepsilon$\\или\\$|f_{1}-f_{0}| \approx 0$?};
+        
+        \node[decision, below=of tol] (limit) {$iter \ge iter_{\max}$?};
+        
+        \node[block, below=of limit] (step) {Расчёт шага метода секущих:\\
+        $\Delta x = -f_{1}\dfrac{x_{1}-x_{0}}{f_{1}-f_{0}}$};
+        \node[block, below=of step] (clamp) {Ограничение шага и проверка\\ фазовых границ, границ региона\\ и допустимого диапазона};
+        \node[block, below=of clamp] (update) {Обновление приближения:\\
+        $x_{0}\leftarrow x_{1}$\\
+        $x_{1}\leftarrow x_{1}+\Delta x$\\
+        $iter \leftarrow iter + 1$};
+        
+        \node[block, fill=green!18, right=of tol] (ok) {Успешный выход:\\
+        возврат согласованного состояния};
+        \node[block, fill=red!15, right=of limit] (fail) {Ошибка:\\
+        превышен лимит итераций\\или нарушена сходимость};
+
+        \path[line] (start) -- (init);
+        \path[line] (init) -- (calc);
+        \path[line] (calc) -- (tol);
+        \path[line] (tol) -- node[near start, above] {Да} (ok);
+        \path[line] (tol) -- node[near start, right] {Нет} (limit);
+        \path[line] (limit) -- node[near start, above] {Да} (fail);
+        \path[line] (limit) -- node[near start, right] {Нет} (step);
+        \path[line] (step) -- (clamp);
+        \path[line] (clamp) -- (update);
+        \draw[line] (update.west) -- ++(-1.4,0) |- (calc.west);
+    \end{tikzpicture}
+    \caption{Блок-схема одномерного итерационного контура метода секущих с контролем физических ограничений}
+    \label{fig:secant_algorithm}
+\end{figure}
+
+Для одномерного восстановления используется метод секущих:
+\begin{equation}
+\rho_{k+1} = \rho_{k}
+- F_{\rho}(\rho_{k})\,
+\frac{\rho_{k}-\rho_{k-1}}
+{F_{\rho}(\rho_{k})-F_{\rho}(\rho_{k-1})}.
+\end{equation}
+Начальные приближения $\rho_{0}$ и $\rho_{1}$
+выбираются в физически допустимом интервале региона~3,
+а итерации завершаются,
+когда выполняется условие
+\begin{equation}
+|F_{\rho}(\rho_{k})| < \varepsilon_{p}
+\quad \mbox{или} \quad
+|\rho_{k}-\rho_{k-1}| < \varepsilon_{\rho}.
+\end{equation}
+После восстановления плотности
+состояние рассчитывается по прямым формулам региона~3.
+Опубликованные IAPWS зависимости $v(p, T)$ для региона~3
+могут использоваться как опорная аппроксимация
+или как источник для проверки результата~\cite{iapws_vpt_region3}.
+
+Для однофазных регионов~1, 2 и~5
+естественной входной парой является $(p, T)$.
+Поэтому маршрут $(\rho, T)$
+вне двухфазной области удобно трактовать симметрично:
+при заданных $\rho_{\mathrm{target}}$ и $T_{\mathrm{target}}$
+сначала восстанавливается давление,
+после чего расчёт продолжается стандартным маршрутом $(p, T)$.
+Целевая функция имеет вид
+\begin{equation}
+F_{p}(p) = \rho_{\mathrm{if97}}(p, T_{\mathrm{target}}) - \rho_{\mathrm{target}}.
+\end{equation}
+
+Итерационный шаг метода секущих записывается как
+\begin{equation}
+p_{k+1} = p_{k}
+- F_{p}(p_{k})\,
+\frac{p_{k}-p_{k-1}}
+{F_{p}(p_{k})-F_{p}(p_{k-1})}.
+\end{equation}
+Критерии остановки выбираются по той же схеме,
+что и для восстановления плотности:
+\begin{equation}
+|F_{p}(p_{k})| < \varepsilon_{\rho}
+\quad \mbox{или} \quad
+|p_{k}-p_{k-1}| < \varepsilon_{p}.
+\end{equation}
+После нахождения давления
+срабатывает обычная маршрутизация IF97,
+и вычисление продолжается как расчёт по входной паре $(p, T)$.
+Тем самым маршрут $(\rho, T)$
+остаётся встроенным в общую архитектуру модели
+и не требует отдельного набора формул
+для каждого однофазного региона.
